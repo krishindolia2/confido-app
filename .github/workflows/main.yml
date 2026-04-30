@@ -23,9 +23,12 @@ jobs:
           
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Create Android files
+        run: flutter create . --platforms android # This fixes the "unsupported Gradle" error
         
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-tree-shake-icons
         
       - name: Upload APK
         uses: actions/upload-artifact@v4
