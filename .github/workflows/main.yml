@@ -26,8 +26,11 @@ jobs:
           flutter pub cache clean --force
           flutter pub get
       - name: Create Android files
-        run: flutter create . --platforms android # This fixes the "unsupported Gradle" error
-        
+        run: |
+          flutter create . --platforms android
+          echo "android.useAndroidX=true" > android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
+          sed -i 's/android {/android {\n    namespace "com.example.confido"/' android/app/build.gradle
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
       - name: Upload APK
