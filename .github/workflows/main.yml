@@ -30,7 +30,7 @@ jobs:
           flutter create . --platforms android
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
-          sed -i 's/android {/android {\n    namespace = "com.example.confido";/' android/app/build.gradle.kts
+          sed -i 's/android {/android {\n    namespace = "com.example.confido"/' android/app/build.gradle.kts
           
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
