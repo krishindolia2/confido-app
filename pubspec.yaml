@@ -1,0 +1,42 @@
+name: confido
+description: A high-status neural coach for linguistic authority and confidence.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.4.9
+  
+  # Neural Engine (AI)
+  google_generative_ai: ^0.4.0
+  
+  # Core Infrastructure (Auth & Database)
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.6
+  firebase_storage: ^11.5.6
+  
+  # Hardware & Media
+  record: ^5.0.4
+  path_provider: ^2.1.1
+  audioplayers: ^5.2.1
+  
+  # UI & Design
+  lucide_icons: ^0.301.0
+  animate_do: ^3.3.4
+  google_fonts: ^6.1.0
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  
