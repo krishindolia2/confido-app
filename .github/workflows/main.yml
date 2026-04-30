@@ -30,7 +30,28 @@ jobs:
           flutter create . --platforms android
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
-          sed -i 's/android {/android {\n    namespace = "com.example.confido"/' android/app/build.gradle.kts
+          
+          cat <<EOF > android/app/build.gradle.kts
+          plugins {
+              id("com.android.application")
+              id("kotlin-android")
+              id("dev.flutter.flutter-gradle-plugin")
+          }
+          android {
+              namespace = "com.example.confido"
+              compileSdk = flutter.compileSdkVersion
+              defaultConfig {
+                  applicationId = "com.example.confido"
+                  minSdk = flutter.minSdkVersion
+                  targetSdk = flutter.targetSdkVersion
+                  versionCode = flutter.versionCode
+                  versionName = flutter.versionName
+              }
+          }
+          flutter {
+              source = "../.."
+          }
+          EOF
           
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
