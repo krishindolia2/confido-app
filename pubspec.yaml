@@ -27,7 +27,7 @@ dependencies:
   audioplayers: ^5.2.1
   
   # UI & Design
-  lucide_icons: ^0.257.0
+  lucide_icons: ^0.339.0
   animate_do: ^3.3.4
   google_fonts: ^6.1.0
   cupertino_icons: ^1.0.6
