@@ -27,12 +27,11 @@ jobs:
           flutter pub get
       - name: Create Android files
         run: |
-          - name: Create Android files
-        run: |
           flutter create . --platforms android
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           sed -i 's/android {/android {\n    namespace "com.example.confido"/' android/app/build.gradle.kts
+          
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
       - name: Upload APK
