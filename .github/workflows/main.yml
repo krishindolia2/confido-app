@@ -87,15 +87,17 @@ jobs:
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
             echo "Patching record_mp3 at $REC_DIR..."
-            sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
+            # Using | instead of / to avoid URL conflicts
+            sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
-            sed -i 's/package="com.plugin.record_mp3"//g' "$REC_DIR/android/src/main/AndroidManifest.xml"
+            sed -i 's|package="com.plugin.record_mp3"||g' "$REC_DIR/android/src/main/AndroidManifest.xml"
             
-            # This line must be exactly like this to fix the Aliyun mirror:
-            sed -i 's/repositories {/repositories {\n        maven { url "https://maven.aliyun.com/repository/jcenter" }/' "$REC_DIR/android/build.gradle"
+            # The Mirror Fix
+            sed -i 's|repositories {|repositories {\n        maven { url "https://maven.aliyun.com/repository/jcenter" }|' "$REC_DIR/android/build.gradle"
             
-            sed -i 's/android {/android {\n    namespace "com.plugin.record_mp3"/' "$REC_DIR/android/build.gradle"
-            sed -i 's/compileSdkVersion.*/compileSdkVersion 35/' "$REC_DIR/android/build.gradle"
+            # The Namespace and SDK Fixes
+            sed -i 's|android {|android {\n    namespace "com.plugin.record_mp3"|' "$REC_DIR/android/build.gradle"
+            sed -i 's|compileSdkVersion.*|compileSdkVersion 35|' "$REC_DIR/android/build.gradle"
           fi
       - name: Build APK
         run: |
