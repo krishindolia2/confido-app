@@ -40,6 +40,13 @@ jobs:
                   maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
                   maven { url = uri("https://jitpack.io") }
               }
+              # This forces all libraries to use a version of core that has 'lStar'
+              configurations.all {
+                  resolutionStrategy {
+                      force("androidx.core:core:1.13.1")
+                      force("androidx.core:core-ktx:1.13.1")
+                  }
+              }
           }
           EOF
 
