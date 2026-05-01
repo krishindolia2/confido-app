@@ -40,7 +40,6 @@ jobs:
                   maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
                   maven { url = uri("https://jitpack.io") }
               }
-              // This forces all libraries to use a version of core that has lStar
               configurations.all {
                   resolutionStrategy {
                       force("androidx.core:core:1.13.1")
@@ -80,21 +79,26 @@ jobs:
           }
           EOF
 
-          # PATH VARIABLES
-          REC_PATH="/home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0"
-          JAVA_FILE="\$REC_PATH/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
-          MANIFEST_FILE="\$REC_PATH/android/src/main/AndroidManifest.xml"
-          GRADLE_FILE="\$REC_PATH/android/build.gradle"
+          # AUTOMATIC SEARCH AND PATCH
+          # This finds the record_mp3 folder wherever it is in the cache
+          REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
 
-          # 1. FIX THE JAVA CODE
-          sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' \$JAVA_FILE
-          sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' \$JAVA_FILE
-
-          # 2. FIX THE MANIFEST
-          sed -i 's/package="com.plugin.record_mp3"//g' \$MANIFEST_FILE
-
-          # 3. FIX THE PACKAGE NAMESPACE
-          sed -i 's/android {/android {\n    namespace "com.example.confido"/' \$GRADLE_FILE
+          if [ -n "$REC_DIR" ]; then
+            echo "Found record_mp3 at $REC_DIR. Applying patches..."
+            
+            # 1. Fix Java Code
+            sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
+            sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
+            
+            # 2. Fix Manifest
+            sed -i 's/package="com.plugin.record_mp3"//g' "$REC_DIR/android/src/main/AndroidManifest.xml"
+            
+            # 3. Fix Namespace
+            sed -i 's/android {/android {\n    namespace "com.example.confido"/' "$REC_DIR/android/build.gradle"
+          else
+            echo "Error: Could not find record_mp3 in cache. Ensure 'Get dependencies' step finished."
+            exit 1
+          fi
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
       - name: Upload APK
