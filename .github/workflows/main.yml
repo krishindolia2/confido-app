@@ -27,10 +27,11 @@ jobs:
           flutter pub get
       - name: Create Android files
         run: |
+          # 1. Initialize project and get dependencies
           flutter create . --platforms android --org com.example
           flutter pub get
 
-          # 1. Memory and AndroidX settings
+          # 2. Configure Gradle memory and AndroidX
           cat <<EOF > android/gradle.properties
           org.gradle.jvmargs=-Xmx2G
           org.gradle.daemon=false
@@ -38,18 +39,23 @@ jobs:
           android.enableJetifier=true
           EOF
 
-          # 2. Force Duplicate Class Resolution
-          # This tells Gradle: if you find two versions of the same library, pick the modern one.
-          sed -i '/dependencies {/a \    configurations.all { resolutionStrategy.force "androidx.core:core:1.13.1" }' android/app/build.gradle
+          # 3. Handle Duplicate Class conflict (Fixes the Groovy or Kotlin build file)
+          if [ -f "android/app/build.gradle" ]; then
+            sed -i '/dependencies {/a \    configurations.all { resolutionStrategy.force "androidx.core:core:1.13.1" }' android/app/build.gradle
+          elif [ -f "android/app/build.gradle.kts" ]; then
+            sed -i '/dependencies {/a \    configurations.all { resolutionStrategy { force("androidx.core:core:1.13.1") } }' android/app/build.gradle.kts
+          fi
 
-          # 3. Patch record_mp3
+          # 4. Patch record_mp3 plugin
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
+            echo "Patching record_mp3 at $REC_DIR..."
+            
+            # Remove legacy Java registrar
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
-            sed -i 's|package="com.plugin.record_mp3"||g' "$REC_DIR/android/src/main/AndroidManifest.xml"
             
-            # Update plugin build.gradle to modern standards
+            # Update plugin build logic
             cat <<EOF > "$REC_DIR/android/build.gradle"
             group 'com.plugin.record_mp3'
             version '1.0-SNAPSHOT'
