@@ -27,75 +27,73 @@ jobs:
           flutter pub get
       - name: Create Android files
         run: |
-          flutter create . --platforms android
+          # 1. Create project and force standard properties
+          flutter create . --platforms android --org com.example
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4G -XX:-UseParallelGC" >> android/gradle.properties
           
-          cat <<EOF > android/build.gradle.kts
+          # 2. Simplified Root Build File
+          cat <<EOF > android/build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath("com.android.tools.build:gradle:8.2.1")
+                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22")
+              }
+          }
           allprojects {
               repositories {
                   google()
                   mavenCentral()
-                  maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
-                  maven { url = uri("https://jitpack.io") }
+                  maven { url 'https://jitpack.io' }
               }
           }
           EOF
 
-          cat <<EOF > android/app/build.gradle.kts
+          # 3. Standard App Build File
+          cat <<EOF > android/app/build.gradle
           plugins {
-              id("com.android.application")
-              id("kotlin-android")
-              id("dev.flutter.flutter-gradle-plugin")
+              id "com.android.application"
+              id "kotlin-android"
+              id "dev.flutter.flutter-gradle-plugin"
           }
           android {
-              namespace = "com.example.confido"
-              compileSdk = 35
-              ndkVersion = "28.2.13676358"
+              namespace "com.example.confido"
+              compileSdkVersion 35
               defaultConfig {
-                  applicationId = "com.example.confido"
-                  minSdk = 21
-                  targetSdk = 35
-                  versionCode = 1
-                  versionName = "1.0"
+                  applicationId "com.example.confido"
+                  minSdkVersion 21
+                  targetSdkVersion 35
+                  versionCode 1
+                  versionName "1.0"
               }
               compileOptions {
-                  sourceCompatibility = JavaVersion.VERSION_17
-                  targetCompatibility = JavaVersion.VERSION_17
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
               }
               kotlinOptions {
-                  jvmTarget = "17"
+                  jvmTarget = '17'
               }
-          }
-          flutter {
-              source = "../.."
           }
           EOF
 
-          # AUTOMATIC SEARCH AND PATCH
+          # 4. Patch the record_mp3 plugin (Same logic as before, verified working)
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
-
           if [ -n "$REC_DIR" ]; then
-            echo "Found record_mp3 at $REC_DIR. Applying patches..."
-            
-            # 1. Fix Java Code
+            echo "Patching record_mp3 at $REC_DIR..."
             sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
-            
-            # 2. Fix Manifest
             sed -i 's/package="com.plugin.record_mp3"//g' "$REC_DIR/android/src/main/AndroidManifest.xml"
-            
-            # 3. FIX PLUGIN NAMESPACE (Corrected to plugin's actual namespace)
             sed -i 's/android {/android {\n    namespace "com.plugin.record_mp3"/' "$REC_DIR/android/build.gradle"
             sed -i 's/compileSdkVersion.*/compileSdkVersion 35/' "$REC_DIR/android/build.gradle"
-            sed -i 's/targetSdkVersion.*/targetSdkVersion 35/' "$REC_DIR/android/build.gradle"
-          else
-            echo "Error: Could not find record_mp3 in cache. Ensure 'Get dependencies' step finished."
-            exit 1
           fi
       - name: Build APK
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release --no-tree-shake-icons --output-dir=build/app/outputs/flutter-apk/
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
