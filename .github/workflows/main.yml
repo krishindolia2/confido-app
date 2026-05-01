@@ -27,59 +27,27 @@ jobs:
           flutter pub get
       - name: Create Android files
         run: |
-          # 1. Create the project structure properly
+          # 1. Basic Setup
           flutter create . --platforms android --org com.example
-          
-          # 2. Let Flutter generate the correct 'local.properties' and environment
           flutter pub get
-          
-          # 3. Patch the record_mp3 plugin DIRECTLY in its source
+
+          # 2. Patch the plugin directly
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
-            echo "Patching record_mp3 at $REC_DIR..."
+            echo "Patching record_mp3..."
             
-            # Fix the Java code
+            # Remove old registrar code
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             
-            # Fix the Manifest
+            # Clean up the Manifest
             sed -i 's|package="com.plugin.record_mp3"||g' "$REC_DIR/android/src/main/AndroidManifest.xml"
             
-            # Fix the build.gradle inside the plugin (This is the critical part)
-            # We inject the Aliyun mirror and fix the namespace/SDK in one go
-            cat <<EOF > "$REC_DIR/android/build.gradle"
-            group 'com.plugin.record_mp3'
-            version '1.0-SNAPSHOT'
-
-            buildscript {
-                repositories {
-                    google()
-                    mavenCentral()
-                    maven { url "https://maven.aliyun.com/repository/jcenter" }
-                }
-                dependencies {
-                    classpath 'com.android.tools.build:gradle:8.2.1'
-                }
-            }
-
-            rootProject.allprojects {
-                repositories {
-                    google()
-                    mavenCentral()
-                    maven { url "https://maven.aliyun.com/repository/jcenter" }
-                }
-            }
-
-            apply plugin: 'com.android.library'
-
-            android {
-                namespace "com.plugin.record_mp3"
-                compileSdkVersion 35
-                defaultConfig {
-                    minSdkVersion 21
-                }
-            }
-            EOF
+            # Fix the Build settings
+            sed -i 's|repositories {|repositories {\n        maven { url "https://maven.aliyun.com/repository/jcenter" }|' "$REC_DIR/android/build.gradle"
+            sed -i 's|android {|android {\n    namespace "com.plugin.record_mp3"|' "$REC_DIR/android/build.gradle"
+            sed -i 's|compileSdkVersion.*|compileSdkVersion 35|' "$REC_DIR/android/build.gradle"
+            sed -i 's|minSdkVersion.*|minSdkVersion 21|' "$REC_DIR/android/build.gradle"
           fi
       
       - name: Build APK
