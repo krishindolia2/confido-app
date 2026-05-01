@@ -31,16 +31,20 @@ jobs:
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           
-          # This tells the project exactly where to find that missing mp3recorder library
           cat <<EOF > android/build.gradle.kts
           allprojects {
               repositories {
                   google()
                   mavenCentral()
                   maven { url = uri("https://jitpack.io") }
-                  maven { url = uri("https://dl.google.com/dl/android/maven2/") }
-                  // This is the specific legacy host for czt mp3recorder
                   maven { url = uri("https://repo1.maven.org/maven2/") }
+              }
+              configurations.all {
+                  resolutionStrategy.eachDependency {
+                      if (requested.group == "com.czt.mp3recorder") {
+                          useVersion("1.0.4")
+                      }
+                  }
               }
           }
           EOF
@@ -66,9 +70,14 @@ jobs:
           flutter {
               source = "../.."
           }
+          dependencies {
+              implementation("com.czt.mp3recorder:library:1.0.4") {
+                  isTransitive = false
+              }
+          }
           EOF
 
-          # Re-apply the namespace patch for the broken package
+          # Final patch for the record_mp3 package namespace
           sed -i 's/android {/android {\n    namespace "com.example.confido"/' /home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/build.gradle
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
