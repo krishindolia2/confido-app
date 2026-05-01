@@ -66,17 +66,22 @@ jobs:
           }
           EOF
 
-          # The surgical patch for the record_mp3 code error
-          FILE_PATH="/home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
-          
-          # Remove the 'Registrar' import
-          sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' $FILE_PATH
-          
-          # Completely remove the old 'registerWith' method that is causing the crash
-          sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' $FILE_PATH
+          # PATH VARIABLES
+          REC_PATH="/home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0"
+          JAVA_FILE="$REC_PATH/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
+          MANIFEST_FILE="$REC_PATH/android/src/main/AndroidManifest.xml"
+          GRADLE_FILE="$REC_PATH/android/build.gradle"
 
-          # Re-apply the namespace patch to the package's build.gradle
-          sed -i 's/android {/android {\n    namespace "com.example.confido"/' /home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/build.gradle
+          # 1. FIX THE JAVA CODE (Remove Registrar)
+          sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' $JAVA_FILE
+          sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' $JAVA_FILE
+
+          # 2. FIX THE MANIFEST (The current error in your screenshot)
+          # This removes the 'package=' attribute which is no longer supported in the Manifest
+          sed -i 's/package="com.plugin.record_mp3"//g' $MANIFEST_FILE
+
+          # 3. FIX THE PACKAGE NAMESPACE
+          sed -i 's/android {/android {\n    namespace "com.example.confido"/' $GRADLE_FILE
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
       - name: Upload APK
