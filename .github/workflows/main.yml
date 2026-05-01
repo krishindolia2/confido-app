@@ -66,15 +66,16 @@ jobs:
           }
           EOF
 
-          # This is the "Magic Fix" for the record_mp3 code error
-          # It comments out the old Registrar lines that are causing the 'cannot find symbol' error
-          RECORD_MP3_PATH="/home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
-          sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;/\/\/ Registrar removed/g' $RECORD_MP3_PATH
-          sed -i 's/public static void registerWith(Registrar registrar) {/\/* Registrar removed/g' $RECORD_MP3_PATH
-          sed -i '/RecordMp3Plugin plugin = new RecordMp3Plugin();/a \    }' $RECORD_MP3_PATH
-          sed -i 's/RecordMp3Plugin plugin = new RecordMp3Plugin();/RecordMp3Plugin plugin = new RecordMp3Plugin(); \n    }\n    \/*/g' $RECORD_MP3_PATH
+          # The surgical patch for the record_mp3 code error
+          FILE_PATH="/home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
+          
+          # Remove the 'Registrar' import
+          sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' $FILE_PATH
+          
+          # Completely remove the old 'registerWith' method that is causing the crash
+          sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' $FILE_PATH
 
-          # Re-apply the namespace patch
+          # Re-apply the namespace patch to the package's build.gradle
           sed -i 's/android {/android {\n    namespace "com.example.confido"/' /home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/build.gradle
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
