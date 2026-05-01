@@ -31,12 +31,12 @@ jobs:
           flutter create . --platforms android --org com.example
           flutter pub get
 
-          # 2. Modernize the app settings
+          # 2. Modernize the app settings (Single lines to avoid EOF)
           echo "org.gradle.jvmargs=-Xmx2G" > android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           
-          # Fix Duplicate Class
+          # Fix Duplicate Class conflict
           if [ -f "android/app/build.gradle" ]; then
             sed -i '/dependencies {/a \    configurations.all { resolutionStrategy.force "androidx.core:core:1.13.1" }' android/app/build.gradle
           elif [ -f "android/app/build.gradle.kts" ]; then
@@ -48,11 +48,11 @@ jobs:
           if [ -n "$REC_DIR" ]; then
             echo "Deep patching plugin at $REC_DIR..."
             
-            # Fix the missing package references (This solves the error in your screenshot)
-            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|import com.czt.mp3recorder.util.LameUtil;|import com.plugin.record_mp3.LameUtil;|g' {} +
-            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|import com.czt.mp3recorder.util.PCMFormat;|import com.plugin.record_mp3.PCMFormat;|g' {} +
+            # This replaces ALL instances of the broken package name with the correct one
+            # It targets the specific 'cannot find symbol' errors in your screenshot
+            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|com.czt.mp3recorder.util|com.plugin.record_mp3|g' {} +
             
-            # Clean up old code
+            # Remove legacy Java registrar that causes build crashes
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             
