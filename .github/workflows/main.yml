@@ -30,18 +30,14 @@ jobs:
           flutter create . --platforms android
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4G" >> android/gradle.properties
           
-          # This line gives the build process 4GB of RAM so it doesn't crash on Jetify
-          echo "org.gradle.jvmargs=-Xmx4G -XX:MaxMetaspaceSize=1G" >> android/gradle.properties
-          
-          # Pointing to the Alibaba JCenter archives
           cat <<EOF > android/build.gradle.kts
           allprojects {
               repositories {
                   google()
                   mavenCentral()
                   maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
-                  maven { url = uri("https://maven.aliyun.com/repository/public") }
                   maven { url = uri("https://jitpack.io") }
               }
           }
@@ -55,12 +51,12 @@ jobs:
           }
           android {
               namespace = "com.example.confido"
-              compileSdk = 35
+              compileSdk = 34
               ndkVersion = "28.2.13676358"
               defaultConfig {
                   applicationId = "com.example.confido"
                   minSdk = 21
-                  targetSdk = 35
+                  targetSdk = 34
                   versionCode = 1
                   versionName = "1.0"
               }
@@ -70,7 +66,15 @@ jobs:
           }
           EOF
 
-          # Keep the namespace fix for the record_mp3 package
+          # This is the "Magic Fix" for the record_mp3 code error
+          # It comments out the old Registrar lines that are causing the 'cannot find symbol' error
+          RECORD_MP3_PATH="/home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
+          sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;/\/\/ Registrar removed/g' $RECORD_MP3_PATH
+          sed -i 's/public static void registerWith(Registrar registrar) {/\/* Registrar removed/g' $RECORD_MP3_PATH
+          sed -i '/RecordMp3Plugin plugin = new RecordMp3Plugin();/a \    }' $RECORD_MP3_PATH
+          sed -i 's/RecordMp3Plugin plugin = new RecordMp3Plugin();/RecordMp3Plugin plugin = new RecordMp3Plugin(); \n    }\n    \/*/g' $RECORD_MP3_PATH
+
+          # Re-apply the namespace patch
           sed -i 's/android {/android {\n    namespace "com.example.confido"/' /home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/build.gradle
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
