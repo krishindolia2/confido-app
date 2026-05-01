@@ -41,7 +41,6 @@ jobs:
               namespace = "com.example.confido"
               compileSdk = 35
               ndkVersion = "28.2.13676358"
-              
               defaultConfig {
                   applicationId = "com.example.confido"
                   minSdk = 21
@@ -55,7 +54,25 @@ jobs:
           }
           EOF
 
-          # This line forces the namespace into the record_mp3 package specifically
+          cat <<EOF > android/settings.gradle.kts
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+                  maven { url = uri("https://jitpack.io") }
+              }
+          }
+          include(":app")
+          EOF
+
           sed -i 's/android {/android {\n    namespace "com.example.confido"/' /home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/build.gradle
           
       - name: Build APK
