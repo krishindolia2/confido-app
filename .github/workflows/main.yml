@@ -30,7 +30,6 @@ jobs:
           flutter create . --platforms android
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
-          # Added the specific GC flag the compiler asked for to stop memory crashes
           echo "org.gradle.jvmargs=-Xmx4G -XX:-UseParallelGC" >> android/gradle.properties
           
           cat <<EOF > android/build.gradle.kts
@@ -87,8 +86,8 @@ jobs:
             # 2. Fix Manifest
             sed -i 's/package="com.plugin.record_mp3"//g' "$REC_DIR/android/src/main/AndroidManifest.xml"
             
-            # 3. BRUTE FORCE SDK 35 INSIDE THE PLUGIN TO FIX lStar
-            sed -i 's/android {/android {\n    namespace "com.example.confido"/' "$REC_DIR/android/build.gradle"
+            # 3. FIX PLUGIN NAMESPACE (Corrected to plugin's actual namespace)
+            sed -i 's/android {/android {\n    namespace "com.plugin.record_mp3"/' "$REC_DIR/android/build.gradle"
             sed -i 's/compileSdkVersion.*/compileSdkVersion 35/' "$REC_DIR/android/build.gradle"
             sed -i 's/targetSdkVersion.*/targetSdkVersion 35/' "$REC_DIR/android/build.gradle"
           else
