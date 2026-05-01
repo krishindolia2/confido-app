@@ -27,38 +27,30 @@ jobs:
           flutter pub get
       - name: Create Android files
         run: |
-          # 1. Create project and immediately remove conflicting KTS files
           flutter create . --platforms android --org com.example
           rm -f android/*.kts android/app/*.kts
           
+          # Create settings.gradle so 'app' is recognized
+          echo "include ':app'" > android/settings.gradle
+          
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
-          echo "org.gradle.jvmargs=-Xmx4G -XX:-UseParallelGC" >> android/gradle.properties
           
-          # 2. Root Build File
+          # Root Build File
           cat <<EOF > android/build.gradle
           buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-                  maven { url 'https://maven.aliyun.com/repository/jcenter' }
-              }
+              repositories { google(); mavenCentral(); maven { url 'https://maven.aliyun.com/repository/jcenter' } }
               dependencies {
-                  classpath("com.android.tools.build:gradle:8.2.1")
-                  classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22")
+                  classpath 'com.android.tools.build:gradle:8.2.1'
+                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22'
               }
           }
           allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-                  maven { url 'https://maven.aliyun.com/repository/jcenter' }
-                  maven { url 'https://jitpack.io' }
-              }
+              repositories { google(); mavenCentral(); maven { url 'https://maven.aliyun.com/repository/jcenter' }; maven { url 'https://jitpack.io' } }
           }
           EOF
 
-          # 3. App Build File (Fixed with NDK Version)
+          # App Build File
           cat <<EOF > android/app/build.gradle
           plugins {
               id "com.android.application"
@@ -76,20 +68,14 @@ jobs:
                   versionCode 1
                   versionName "1.0"
               }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-              kotlinOptions {
-                  jvmTarget = '17'
-              }
+              compileOptions { sourceCompatibility 17; targetCompatibility 17 }
+              kotlinOptions { jvmTarget = '17' }
           }
           EOF
 
-          # 4. Patch the record_mp3 plugin (Using safe delimiters)
+          # Patch plugin
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
-            echo "Patching record_mp3 at $REC_DIR..."
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i 's|package="com.plugin.record_mp3"||g' "$REC_DIR/android/src/main/AndroidManifest.xml"
@@ -97,6 +83,7 @@ jobs:
             sed -i 's|android {|android {\n    namespace "com.plugin.record_mp3"|' "$REC_DIR/android/build.gradle"
             sed -i 's|compileSdkVersion.*|compileSdkVersion 35|' "$REC_DIR/android/build.gradle"
           fi
+      
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
 
