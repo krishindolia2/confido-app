@@ -27,70 +27,59 @@ jobs:
           flutter pub get
       - name: Create Android files
         run: |
+          # 1. Create the project structure properly
           flutter create . --platforms android --org com.example
-          rm -f android/*.kts android/app/*.kts
           
-          # 1. Define where Flutter is for the build system
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          # 2. Let Flutter generate the correct 'local.properties' and environment
+          flutter pub get
           
-          # 2. Updated settings.gradle to load Flutter plugins correctly
-          cat <<EOF > android/settings.gradle
-          pluginManagement {
-              repositories { google(); mavenCentral(); gradlePluginPortal() }
-          }
-          plugins {
-              id "dev.flutter.flutter-gradle-plugin" version "1.0.0" apply false
-          }
-          include ":app"
-          EOF
-
-          # 3. Root Build File
-          cat <<EOF > android/build.gradle
-          buildscript {
-              repositories { google(); mavenCentral(); maven { url 'https://maven.aliyun.com/repository/jcenter' } }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.2.1'
-                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22'
-              }
-          }
-          allprojects {
-              repositories { google(); mavenCentral(); maven { url 'https://maven.aliyun.com/repository/jcenter' }; maven { url 'https://jitpack.io' } }
-          }
-          EOF
-
-          # 4. App Build File
-          cat <<EOF > android/app/build.gradle
-          plugins {
-              id "com.android.application"
-              id "kotlin-android"
-              id "dev.flutter.flutter-gradle-plugin"
-          }
-          android {
-              namespace "com.example.confido"
-              compileSdkVersion 35
-              ndkVersion "26.2.13676358"
-              defaultConfig {
-                  applicationId "com.example.confido"
-                  minSdkVersion 21
-                  targetSdkVersion 35
-                  versionCode 1
-                  versionName "1.0"
-              }
-              compileOptions { sourceCompatibility 17; targetCompatibility 17 }
-              kotlinOptions { jvmTarget = '17' }
-          }
-          EOF
-
-          # 5. Patch the record_mp3 plugin
+          # 3. Patch the record_mp3 plugin DIRECTLY in its source
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
+            echo "Patching record_mp3 at $REC_DIR..."
+            
+            # Fix the Java code
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
+            
+            # Fix the Manifest
             sed -i 's|package="com.plugin.record_mp3"||g' "$REC_DIR/android/src/main/AndroidManifest.xml"
-            sed -i 's|repositories {|repositories {\n        maven { url "https://maven.aliyun.com/repository/jcenter" }|' "$REC_DIR/android/build.gradle"
-            sed -i 's|android {|android {\n    namespace "com.plugin.record_mp3"|' "$REC_DIR/android/build.gradle"
-            sed -i 's|compileSdkVersion.*|compileSdkVersion 35|' "$REC_DIR/android/build.gradle"
+            
+            # Fix the build.gradle inside the plugin (This is the critical part)
+            # We inject the Aliyun mirror and fix the namespace/SDK in one go
+            cat <<EOF > "$REC_DIR/android/build.gradle"
+            group 'com.plugin.record_mp3'
+            version '1.0-SNAPSHOT'
+
+            buildscript {
+                repositories {
+                    google()
+                    mavenCentral()
+                    maven { url "https://maven.aliyun.com/repository/jcenter" }
+                }
+                dependencies {
+                    classpath 'com.android.tools.build:gradle:8.2.1'
+                }
+            }
+
+            rootProject.allprojects {
+                repositories {
+                    google()
+                    mavenCentral()
+                    maven { url "https://maven.aliyun.com/repository/jcenter" }
+                }
+            }
+
+            apply plugin: 'com.android.library'
+
+            android {
+                namespace "com.plugin.record_mp3"
+                compileSdkVersion 35
+                defaultConfig {
+                    minSdkVersion 21
+                }
+            }
+            EOF
           fi
       
       - name: Build APK
