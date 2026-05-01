@@ -31,37 +31,36 @@ jobs:
           flutter create . --platforms android --org com.example
           flutter pub get
 
-          # 2. Global Android settings (Single lines)
+          # 2. Global Android settings
           echo "org.gradle.jvmargs=-Xmx2G" > android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           
-          # Fix Duplicate Class conflict
+          # Fix Duplicate Class conflict for modern AndroidX
           if [ -f "android/app/build.gradle" ]; then
             sed -i '/dependencies {/a \    configurations.all { resolutionStrategy.force "androidx.core:core:1.13.1" }' android/app/build.gradle
           elif [ -f "android/app/build.gradle.kts" ]; then
             sed -i '/dependencies {/a \    configurations.all { resolutionStrategy { force("androidx.core:core:1.13.1") } }' android/app/build.gradle.kts
           fi
 
-          # 3. Aggressive Patching of record_mp3 source
+          # 3. Aggressive Surgical Patching of record_mp3 source
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
-            echo "Applying surgical patch to plugin source..."
+            echo "Deep patching plugin source at $REC_DIR..."
             
-            # This targets the exact 'package does not exist' errors in your screenshot
-            # It replaces the old library name with the current plugin name everywhere
+            # This fixes the 'symbol not found' errors by pointing everything to the correct package
             find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|com.czt.mp3recorder.util.||g' {} +
             find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|com.czt.mp3recorder.||g' {} +
             
-            # Ensure the plugin's own files can find each other
+            # Re-mapping internal imports to the new namespace
             find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|import LameUtil;|import com.plugin.record_mp3.LameUtil;|g' {} +
             find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|import PCMFormat;|import com.plugin.record_mp3.PCMFormat;|g' {} +
             
-            # Clean up the registrar (legacy code)
+            # Strip legacy registrar code that conflicts with modern Flutter
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             
-            # Rebuild the plugin's build file line-by-line
+            # Recreate the plugin's build file with modern settings
             echo "group 'com.plugin.record_mp3'" > "$REC_DIR/android/build.gradle"
             echo "version '1.0-SNAPSHOT'" >> "$REC_DIR/android/build.gradle"
             echo "apply plugin: 'com.android.library'" >> "$REC_DIR/android/build.gradle"
