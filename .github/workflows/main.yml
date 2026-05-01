@@ -31,13 +31,13 @@ jobs:
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           
+          # Force the project to accept the library without metadata
           cat <<EOF > android/build.gradle.kts
           allprojects {
               repositories {
                   google()
                   mavenCentral()
                   maven { url = uri("https://jitpack.io") }
-                  maven { url = uri("https://repo1.maven.org/maven2/") }
               }
               configurations.all {
                   resolutionStrategy.eachDependency {
@@ -70,6 +70,7 @@ jobs:
           flutter {
               source = "../.."
           }
+          // This tells Gradle to ignore the missing .pom file
           dependencies {
               implementation("com.czt.mp3recorder:library:1.0.4") {
                   isTransitive = false
@@ -77,7 +78,7 @@ jobs:
           }
           EOF
 
-          # Final patch for the record_mp3 package namespace
+          # Re-apply the package patch
           sed -i 's/android {/android {\n    namespace "com.example.confido"/' /home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0/android/build.gradle
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
