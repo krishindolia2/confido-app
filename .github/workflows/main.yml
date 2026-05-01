@@ -27,45 +27,38 @@ jobs:
           flutter pub get
       - name: Create Android files
         run: |
-          # 1. Standard Project Initialization
+          # 1. Project Setup
           flutter create . --platforms android --org com.example
           flutter pub get
 
-          # 2. Global Android settings
+          # 2. Android Environment Fixes
           echo "org.gradle.jvmargs=-Xmx2G" > android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           
-          # Fix Duplicate Class conflict for modern AndroidX
-          if [ -f "android/app/build.gradle" ]; then
-            sed -i '/dependencies {/a \    configurations.all { resolutionStrategy.force "androidx.core:core:1.13.1" }' android/app/build.gradle
-          elif [ -f "android/app/build.gradle.kts" ]; then
-            sed -i '/dependencies {/a \    configurations.all { resolutionStrategy { force("androidx.core:core:1.13.1") } }' android/app/build.gradle.kts
-          fi
+          # Fix modern AndroidX dependency clash
+          [[ -f "android/app/build.gradle" ]] && sed -i '/dependencies {/a \    configurations.all { resolutionStrategy.force "androidx.core:core:1.13.1" }' android/app/build.gradle
+          [[ -f "android/app/build.gradle.kts" ]] && sed -i '/dependencies {/a \    configurations.all { resolutionStrategy { force("androidx.core:core:1.13.1") } }' android/app/build.gradle.kts
 
-          # 3. Aggressive Surgical Patching of record_mp3 source
+          # 3. The "Master Patch" for record_mp3
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
-            echo "Deep patching plugin source at $REC_DIR..."
+            echo "Performing total source override at $REC_DIR"
             
-            # This fixes the 'symbol not found' errors by pointing everything to the correct package
-            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|com.czt.mp3recorder.util.||g' {} +
-            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|com.czt.mp3recorder.||g' {} +
+            # Delete the broken 'util' references and force all Java files into the same package
+            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|package com.czt.mp3recorder.util;|package com.plugin.record_mp3;|g' {} +
+            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|import com.czt.mp3recorder.util.||g' {} +
+            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|package com.plugin.record_mp3.record;|package com.plugin.record_mp3;|g' {} +
             
-            # Re-mapping internal imports to the new namespace
-            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|import LameUtil;|import com.plugin.record_mp3.LameUtil;|g' {} +
-            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|import PCMFormat;|import com.plugin.record_mp3.PCMFormat;|g' {} +
-            
-            # Strip legacy registrar code that conflicts with modern Flutter
+            # Remove legacy registrar
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             
-            # Recreate the plugin's build file with modern settings
+            # Recreate the build file
             echo "group 'com.plugin.record_mp3'" > "$REC_DIR/android/build.gradle"
-            echo "version '1.0-SNAPSHOT'" >> "$REC_DIR/android/build.gradle"
             echo "apply plugin: 'com.android.library'" >> "$REC_DIR/android/build.gradle"
-            echo "repositories { google(); mavenCentral(); maven { url 'https://maven.aliyun.com/repository/jcenter' } }" >> "$REC_DIR/android/build.gradle"
             echo "android { namespace 'com.plugin.record_mp3'; compileSdkVersion 35; defaultConfig { minSdkVersion 21 } }" >> "$REC_DIR/android/build.gradle"
+            echo "repositories { google(); mavenCentral(); maven { url 'https://maven.aliyun.com/repository/jcenter' } }" >> "$REC_DIR/android/build.gradle"
           fi
       
       - name: Build APK
