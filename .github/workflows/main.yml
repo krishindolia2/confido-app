@@ -30,13 +30,22 @@ jobs:
           flutter create . --platforms android --org com.example
           rm -f android/*.kts android/app/*.kts
           
-          # Create settings.gradle so 'app' is recognized
-          echo "include ':app'" > android/settings.gradle
+          # 1. Define where Flutter is for the build system
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           
-          echo "android.useAndroidX=true" > android/gradle.properties
-          echo "android.enableJetifier=true" >> android/gradle.properties
-          
-          # Root Build File
+          # 2. Updated settings.gradle to load Flutter plugins correctly
+          cat <<EOF > android/settings.gradle
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          plugins {
+              id "dev.flutter.flutter-gradle-plugin" version "1.0.0" apply false
+          }
+          include ":app"
+          EOF
+
+          # 3. Root Build File
           cat <<EOF > android/build.gradle
           buildscript {
               repositories { google(); mavenCentral(); maven { url 'https://maven.aliyun.com/repository/jcenter' } }
@@ -50,7 +59,7 @@ jobs:
           }
           EOF
 
-          # App Build File
+          # 4. App Build File
           cat <<EOF > android/app/build.gradle
           plugins {
               id "com.android.application"
@@ -73,7 +82,7 @@ jobs:
           }
           EOF
 
-          # Patch plugin
+          # 5. Patch the record_mp3 plugin
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
