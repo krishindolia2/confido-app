@@ -33,12 +33,13 @@ jobs:
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4G -XX:-UseParallelGC" >> android/gradle.properties
           
-          # 2. Simplified Root Build File
+          # 2. Root Build File with the required Aliyun Mirror
           cat <<EOF > android/build.gradle
           buildscript {
               repositories {
                   google()
                   mavenCentral()
+                  maven { url 'https://maven.aliyun.com/repository/jcenter' }
               }
               dependencies {
                   classpath("com.android.tools.build:gradle:8.2.1")
@@ -49,6 +50,7 @@ jobs:
               repositories {
                   google()
                   mavenCentral()
+                  maven { url 'https://maven.aliyun.com/repository/jcenter' }
                   maven { url 'https://jitpack.io' }
               }
           }
@@ -81,13 +83,17 @@ jobs:
           }
           EOF
 
-          # 4. Patch the record_mp3 plugin (Same logic as before, verified working)
+          # 4. Patch the record_mp3 plugin
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
             echo "Patching record_mp3 at $REC_DIR..."
             sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i 's/package="com.plugin.record_mp3"//g' "$REC_DIR/android/src/main/AndroidManifest.xml"
+            
+            # This line must be exactly like this to fix the Aliyun mirror:
+            sed -i 's/repositories {/repositories {\n        maven { url "https://maven.aliyun.com/repository/jcenter" }/' "$REC_DIR/android/build.gradle"
+            
             sed -i 's/android {/android {\n    namespace "com.plugin.record_mp3"/' "$REC_DIR/android/build.gradle"
             sed -i 's/compileSdkVersion.*/compileSdkVersion 35/' "$REC_DIR/android/build.gradle"
           fi
