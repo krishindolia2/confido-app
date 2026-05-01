@@ -40,7 +40,7 @@ jobs:
                   maven { url = uri("https://maven.aliyun.com/repository/jcenter") }
                   maven { url = uri("https://jitpack.io") }
               }
-              # This forces all libraries to use a version of core that has 'lStar'
+              // This forces all libraries to use a version of core that has lStar
               configurations.all {
                   resolutionStrategy {
                       force("androidx.core:core:1.13.1")
@@ -82,19 +82,19 @@ jobs:
 
           # PATH VARIABLES
           REC_PATH="/home/runner/.pub-cache/hosted/pub.dev/record_mp3-3.0.0"
-          JAVA_FILE="$REC_PATH/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
-          MANIFEST_FILE="$REC_PATH/android/src/main/AndroidManifest.xml"
-          GRADLE_FILE="$REC_PATH/android/build.gradle"
+          JAVA_FILE="\$REC_PATH/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
+          MANIFEST_FILE="\$REC_PATH/android/src/main/AndroidManifest.xml"
+          GRADLE_FILE="\$REC_PATH/android/build.gradle"
 
           # 1. FIX THE JAVA CODE
-          sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' $JAVA_FILE
-          sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' $JAVA_FILE
+          sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' \$JAVA_FILE
+          sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' \$JAVA_FILE
 
           # 2. FIX THE MANIFEST
-          sed -i 's/package="com.plugin.record_mp3"//g' $MANIFEST_FILE
+          sed -i 's/package="com.plugin.record_mp3"//g' \$MANIFEST_FILE
 
           # 3. FIX THE PACKAGE NAMESPACE
-          sed -i 's/android {/android {\n    namespace "com.example.confido"/' $GRADLE_FILE
+          sed -i 's/android {/android {\n    namespace "com.example.confido"/' \$GRADLE_FILE
       - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
       - name: Upload APK
