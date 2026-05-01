@@ -27,37 +27,41 @@ jobs:
           flutter pub get
       - name: Create Android files
         run: |
-          # 1. Setup
+          # 1. Setup project
           flutter create . --platforms android --org com.example
           flutter pub get
 
-          # 2. Configure Gradle (One line at a time to avoid errors)
+          # 2. Modernize the app settings
           echo "org.gradle.jvmargs=-Xmx2G" > android/gradle.properties
-          echo "org.gradle.daemon=false" >> android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
-
-          # 3. Handle Duplicate Class conflict
+          
+          # Fix Duplicate Class
           if [ -f "android/app/build.gradle" ]; then
             sed -i '/dependencies {/a \    configurations.all { resolutionStrategy.force "androidx.core:core:1.13.1" }' android/app/build.gradle
           elif [ -f "android/app/build.gradle.kts" ]; then
             sed -i '/dependencies {/a \    configurations.all { resolutionStrategy { force("androidx.core:core:1.13.1") } }' android/app/build.gradle.kts
           fi
 
-          # 4. Patch record_mp3
+          # 3. Deep-Patch the record_mp3 plugin source
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
-            echo "Patching plugin..."
+            echo "Deep patching plugin at $REC_DIR..."
+            
+            # Fix the missing package references (This solves the error in your screenshot)
+            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|import com.czt.mp3recorder.util.LameUtil;|import com.plugin.record_mp3.LameUtil;|g' {} +
+            find "$REC_DIR/android/src/main/java" -name "*.java" -exec sed -i 's|import com.czt.mp3recorder.util.PCMFormat;|import com.plugin.record_mp3.PCMFormat;|g' {} +
+            
+            # Clean up old code
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
-            sed -i 's|package="com.plugin.record_mp3"||g' "$REC_DIR/android/src/main/AndroidManifest.xml"
             
-            # Simple line-by-line build.gradle creation
+            # Rebuild the plugin's build file line-by-line
             echo "group 'com.plugin.record_mp3'" > "$REC_DIR/android/build.gradle"
             echo "version '1.0-SNAPSHOT'" >> "$REC_DIR/android/build.gradle"
             echo "apply plugin: 'com.android.library'" >> "$REC_DIR/android/build.gradle"
-            echo "android { namespace 'com.plugin.record_mp3'; compileSdkVersion 35; defaultConfig { minSdkVersion 21 } }" >> "$REC_DIR/android/build.gradle"
             echo "repositories { google(); mavenCentral(); maven { url 'https://maven.aliyun.com/repository/jcenter' } }" >> "$REC_DIR/android/build.gradle"
+            echo "android { namespace 'com.plugin.record_mp3'; compileSdkVersion 35; defaultConfig { minSdkVersion 21 } }" >> "$REC_DIR/android/build.gradle"
           fi
       
       - name: Build APK
