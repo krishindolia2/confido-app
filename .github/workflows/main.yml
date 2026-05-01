@@ -51,14 +51,21 @@ jobs:
           }
           android {
               namespace = "com.example.confido"
-              compileSdk = 34
+              compileSdk = 35
               ndkVersion = "28.2.13676358"
               defaultConfig {
                   applicationId = "com.example.confido"
                   minSdk = 21
-                  targetSdk = 34
+                  targetSdk = 35
                   versionCode = 1
                   versionName = "1.0"
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
               }
           }
           flutter {
@@ -72,12 +79,11 @@ jobs:
           MANIFEST_FILE="$REC_PATH/android/src/main/AndroidManifest.xml"
           GRADLE_FILE="$REC_PATH/android/build.gradle"
 
-          # 1. FIX THE JAVA CODE (Remove Registrar)
+          # 1. FIX THE JAVA CODE
           sed -i 's/import io.flutter.plugin.common.PluginRegistry.Registrar;//g' $JAVA_FILE
           sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' $JAVA_FILE
 
-          # 2. FIX THE MANIFEST (The current error in your screenshot)
-          # This removes the 'package=' attribute which is no longer supported in the Manifest
+          # 2. FIX THE MANIFEST
           sed -i 's/package="com.plugin.record_mp3"//g' $MANIFEST_FILE
 
           # 3. FIX THE PACKAGE NAMESPACE
