@@ -27,13 +27,15 @@ jobs:
           flutter pub get
       - name: Create Android files
         run: |
-          # 1. Create project and force standard properties
+          # 1. Create project and immediately remove conflicting KTS files
           flutter create . --platforms android --org com.example
+          rm -f android/*.kts android/app/*.kts
+          
           echo "android.useAndroidX=true" > android/gradle.properties
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "org.gradle.jvmargs=-Xmx4G -XX:-UseParallelGC" >> android/gradle.properties
           
-          # 2. Root Build File with the required Aliyun Mirror
+          # 2. Root Build File
           cat <<EOF > android/build.gradle
           buildscript {
               repositories {
@@ -56,7 +58,7 @@ jobs:
           }
           EOF
 
-          # 3. Standard App Build File
+          # 3. App Build File (Fixed with NDK Version)
           cat <<EOF > android/app/build.gradle
           plugins {
               id "com.android.application"
@@ -66,6 +68,7 @@ jobs:
           android {
               namespace "com.example.confido"
               compileSdkVersion 35
+              ndkVersion "26.2.13676358"
               defaultConfig {
                   applicationId "com.example.confido"
                   minSdkVersion 21
@@ -83,27 +86,19 @@ jobs:
           }
           EOF
 
-          # 4. Patch the record_mp3 plugin
+          # 4. Patch the record_mp3 plugin (Using safe delimiters)
           REC_DIR=$(find $HOME/.pub-cache -name "record_mp3-3.0.0" -type d | head -n 1)
           if [ -n "$REC_DIR" ]; then
             echo "Patching record_mp3 at $REC_DIR..."
-            # Using | instead of / to avoid URL conflicts
             sed -i 's|import io.flutter.plugin.common.PluginRegistry.Registrar;||g' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i '/public static void registerWith(Registrar registrar) {/,/}/d' "$REC_DIR/android/src/main/java/com/plugin/record_mp3/RecordMp3Plugin.java"
             sed -i 's|package="com.plugin.record_mp3"||g' "$REC_DIR/android/src/main/AndroidManifest.xml"
-            
-            # The Mirror Fix
             sed -i 's|repositories {|repositories {\n        maven { url "https://maven.aliyun.com/repository/jcenter" }|' "$REC_DIR/android/build.gradle"
-            
-            # The Namespace and SDK Fixes
             sed -i 's|android {|android {\n    namespace "com.plugin.record_mp3"|' "$REC_DIR/android/build.gradle"
             sed -i 's|compileSdkVersion.*|compileSdkVersion 35|' "$REC_DIR/android/build.gradle"
           fi
       - name: Build APK
-        run: |
-          flutter build apk --release --no-tree-shake-icons
-          mkdir -p build/app/outputs/flutter-apk/
-          mv build/app/outputs/apk/release/app-release.apk build/app/outputs/flutter-apk/app-release.apk
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
